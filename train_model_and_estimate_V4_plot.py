@@ -4,6 +4,8 @@ from scipy.optimize import nnls
 import scipy
 import numpy as np
 import sys
+import matplotlib.pyplot as plt
+
 
 class train_model_and_estimate(object):
     def __init__(self, file_address):
@@ -49,3 +51,8 @@ if __name__ == "__main__":
     print "cores, estimated_runtime:"
     for i in range(len(estimation)):
        print test_cores[i], estimation[i]
+
+    plt.plot(test_cores, estimation, 'ro', test_cores, estimation)
+    plt.ylabel('Estimated_Runtime')
+    plt.xlabel('Num_Cores')
+    plt.show()
