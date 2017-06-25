@@ -23,7 +23,6 @@ class Select_Train_Points(object):
         self.interpolation = interpolation
 
     def _get_training_points(self):
-        '''Enumerate all the training points given the params for experiment design'''
         machines_range = xrange(self.min_machines, self.max_machines + 1)
 
         scale_min = float(self.min_parts) / float(self.total_parts)
@@ -35,19 +34,16 @@ class Select_Train_Points(object):
                 if np.round(scale * self.total_parts) >= self.cores_per_machine * machines:
                     yield [scale, machines]
 
-    def get_constraints(self, lambdas, points):
-        '''Construct non-negative lambdas and budget constraints'''
-        constraints = []
-        constraints.append(0 <= lambdas)
-        constraints.append(lambdas <= 1)
-        constraints.append(self.get_cost(lambdas, points) <= self.budget)
-        return constraints
+    def get_features(self, training_point):
+        scale = training_point[0]
+        machines = training_point[1]
+        return [1.0, float(scale) / float(machines), float(machines), np.log(machines)]
 
     def get_cost(self, lambdas, data_points):
         cost = 0
         num_points = len(data_points)
 
-        print num_points
+        # print num_points
 
         scale_min = float(self.min_parts) / float(self.total_parts)
 
@@ -57,17 +53,12 @@ class Select_Train_Points(object):
             cost = cost + (float(scale) / scale_min * 1.0 / float(machines) * lambdas[i])
         return cost
 
-    def _get_training_points(self):
-        machines_range = xrange(self.min_machines, self.max_machines + 1)
-
-        scale_min = float(self.min_parts) / float(self.total_parts)
-        scale_max = float(self.max_parts) / float(self.total_parts)
-        scale_range = np.linspace(scale_min, scale_max, self.interpolation)
-
-        for scale in scale_range:
-            for machines in machines_range:
-                if np.round(scale * self.total_parts) >= self.cores_per_machine * machines:
-                    yield [scale, machines]
+    def get_constraints(self, lambdas, points):
+        constraints = []
+        constraints.append(0 <= lambdas)
+        constraints.append(lambdas <= 1)
+        constraints.append(self.get_cost(lambdas, points) <= self.budget)
+        return constraints
 
     def scale2parts(self, scale):
         return int(np.ceil(scale * self.total_parts))
@@ -78,7 +69,7 @@ class Select_Train_Points(object):
         means_inv = (1.0 / col_means)
         num_rows = features_arr.shape[0]
 
-        print num_rows
+        # print num_rows
 
         for i in xrange(0, num_rows):
             feature_row = features_arr[i,]
@@ -89,9 +80,9 @@ class Select_Train_Points(object):
         num_points = len(covariance_matrices)
         num_dim = int(covariance_matrices[0].shape[0])
 
-        print num_points
-        print num_dim
-        print int(covariance_matrices[0].shape[1])
+        #print num_points
+        #print num_dim
+        #print int(covariance_matrices[0].shape[1])
 
         objective = 0
         matrix_part = np.zeros([num_dim, num_dim])
@@ -110,10 +101,9 @@ class Select_Train_Points(object):
         training_points = list(self._get_training_points())
         num_points = len(training_points)
 
-        print num_points
+        # print num_points
 
-
-        training_features = np.array([get_features([row[0], row[1]]) for row in training_points])
+        training_features = np.array([self.get_features([row[0], row[1]]) for row in training_points])
 
         covariance_matrices = list(self.get_covariance_matrices(training_features))
 
@@ -135,21 +125,16 @@ class Select_Train_Points(object):
             if lambdas[i].value > self.threshold_of_lambda:
                 selected_lambda_idxs.append((lambdas[i].value, i))
 
-        print len(selected_lambda_idxs)
+        # print len(selected_lambda_idxs)
 
         sorted_by_lambda = sorted(selected_lambda_idxs, key=lambda l: l[0], reverse=True)
 
-        print len(sorted_by_lambda)
-        print sorted_by_lambda[5]
+        # print len(sorted_by_lambda)
+        # print sorted_by_lambda[5]
 
         return [(self.scale2parts(training_points[idx][0]), training_points[idx][0],
                  training_points[idx][1], l) for (l, idx) in sorted_by_lambda]
 
-
-def get_features(training_point):
-    scale = training_point[0]
-    machines = training_point[1]
-    return [1.0, float(scale) / float(machines), float(machines), np.log(machines)]
 
 
 if __name__ == "__main__":
@@ -173,6 +158,7 @@ if __name__ == "__main__":
         args.interpolation)
 
     results = Instance.select()
+    print "The selected points are:"
     print "Cores(useful), InputFraction(useful), Machines, Partitions, Weight"
     for result in results:
         print "%d, %f, %d, %d, %f" % (result[2] * args.cores_per_machine, result[1], result[2], result[0], result[3])
